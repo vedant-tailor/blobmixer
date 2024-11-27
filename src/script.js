@@ -172,6 +172,7 @@ addLights()
 setupGUI()
 tick()
 wheelMove()
+touchMove()
 
 function loaderSetup() {
     const loader = document.getElementById('loader')
@@ -292,6 +293,71 @@ function wheelMove() {
         currentBlob = next
         updateBlob(blobs[next].config)
     })
+}
+
+function touchMove() {
+    let touchStartY = 0
+    let touchEndY = 0
+
+    window.addEventListener('touchstart', (event) => {
+        touchStartY = event.changedTouches[0].screenY
+    })
+
+    window.addEventListener('touchend', (event) => {
+        touchEndY = event.changedTouches[0].screenY
+        handleGesture()
+    })
+
+    function handleGesture() {
+        if (isAnimating) return
+        isAnimating = true
+        const direction = touchStartY > touchEndY ? 1 : -1
+        const next = (currentBlob + direction + textObjects.length) % textObjects.length
+
+        const updateTextUniforms = (text, dir, progress) => {
+            text.material.uniforms.progress.value = progress
+            text.material.uniforms.direction.value = dir
+        }
+
+        const animateText = (text, xPosition, progressValue, duration) => {
+            gsap.to(text.material.uniforms.progress, { value: progressValue, duration })
+            gsap.to(text.position, { x: xPosition, duration })
+        }
+
+        const nextText = textObjects[next]
+        const currentText = textObjects[currentBlob]
+
+        updateTextUniforms(nextText, direction, 0)
+        nextText.position.x = direction * 3.5
+        nextText.scale.set(1, 1, 1)
+
+        updateTextUniforms(currentText, direction, 0)
+
+        animateText(currentText, -direction * 3.5, 0.5, 1)
+        animateText(nextText, 0, 0.5, 1)
+
+        gsap.to(currentText.material.uniforms.progress, {
+            value: 0.5,
+            duration: 1,
+            onComplete: () => isAnimating = false
+        })
+
+        gsap.to(blob.rotation, {
+            y: blob.rotation.y + Math.PI * 4 * -direction,
+            ease: 'expo',
+            duration: 1,
+        })
+
+        gsap.to(scene.background, {
+            r: new THREE.Color(blobs[next].background).r,
+            g: new THREE.Color(blobs[next].background).g,
+            b: new THREE.Color(blobs[next].background).b,
+            duration: 1,
+        })
+
+        currentBlob = next
+        updateBlob(blobs[next].config)
+    }
 }
 
 function updateBlob(config) {
